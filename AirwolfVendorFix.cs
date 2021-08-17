@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("AirwolfVendorFix", "RFC1920", "1.0.4")]
+    [Info("AirwolfVendorFix", "RFC1920", "1.0.5")]
     [Description("Respawn missing Airwolf and Fishing Village vendors")]
     internal class AirwolfVendorFix : RustPlugin
     {
@@ -166,7 +166,7 @@ namespace Oxide.Plugins
                             {
                                 if (configData.Options.debug) Puts("FOUND VENDOR, KILLING HIM!");
                                 killvendor = true;
-                                //ent.Kill();
+                                ent.Kill();
                             }
                         }
                         else if (ent.ShortPrefabName.Equals("shopkeeper_vm_invis"))
@@ -177,7 +177,7 @@ namespace Oxide.Plugins
                             {
                                 var subitem = hit[i].GetComponentInParent<BaseEntity>();
                                 if (subitem == null) continue;
-                                if (subitem.ShortPrefabName.Equals("bandit_shopkeeper"))
+                                if (subitem.ShortPrefabName.Equals("bandit_shopkeeper") || subitem.ShortPrefabName.Equals("boat_shopkeeper"))
                                 {
                                     if (configData.Options.debug) Puts($"Found an invisible shopkeeper at {subitem.transform.position}, but there is already an associated NPC.");
                                 }
