@@ -1,22 +1,28 @@
 ﻿using Oxide.Core;
+using Oxide.Core.Libraries.Covalence;
 using Oxide.Core.Plugins;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("AirwolfVendorFix", "RFC1920", "1.0.3")]
+    [Info("AirwolfVendorFix", "RFC1920", "1.0.4")]
     [Description("Respawn missing Airwolf and Fishing Village vendors")]
     internal class AirwolfVendorFix : RustPlugin
     {
         private ConfigData configData;
         private readonly string vprefab = "assets/prefabs/npc/bandit/shopkeepers/bandit_conversationalist.prefab";
         private readonly string bprefab = "assets/prefabs/npc/bandit/shopkeepers/boat_shopkeeper.prefab";
+        private readonly List<Vector3> boatloc = new List<Vector3>();
 
         [PluginReference]
         private readonly Plugin GridAPI;
+
+        #region Message
+        private string Lang(string key, string id = null, params object[] args) => string.Format(lang.GetMessage(key, this, id), args);
+        private void Message(IPlayer player, string key, params object[] args) => player.Reply(Lang(key, player.Id, args));
+        #endregion
 
         private void Init()
         {
@@ -62,6 +68,16 @@ namespace Oxide.Plugins
         {
             if (!player.IsAdmin) return;
 
+            if (args.Length > 0)
+            {
+                switch (args[0])
+                {
+                    case "save":
+                        boatloc.Add(player.transform.position);
+                        break;
+                }
+                return;
+            }
             List<VehicleVendor> ven = new List<VehicleVendor>();
             Vis.Entities(player.transform.position, 3f, ven);
             foreach (var vendor in ven)
@@ -129,61 +145,65 @@ namespace Oxide.Plugins
                     name = Regex.Match(monument.name, @"\w{6}\/(.+\/)(.+)\.(.+)").Groups[2].Value.Replace("_", " ").Replace(" 1", "").Titleize();
                 }
 
-                //if (name.Contains("Fishing Village") && configData.Options.placeBoatVendor)
-                //{
-                //    List<BaseEntity> ents = new List<BaseEntity>();
-                //    Vis.Entities(monument.transform.position, 80, ents);
-                //    bool foundgen = false;
-                //    bool foundturret = false;
-                //    bool foundvendor = false;
-                //    Vector3 spawnpos = Vector3.zero;
-                //    Quaternion spawnrot = new Quaternion();
+                if (name.Contains("Fishing Village") && configData.Options.placeBoatVendor)
+                {
+                    // Large Fishing Village
+                    if (configData.Options.debug) Puts($"Working on {name}");
+                    List<BaseEntity> ents = new List<BaseEntity>();
+                    Vis.Entities(monument.transform.position, 80, ents);
+                    bool killvendor = false;
+                    bool foundvendor = false;
+                    Vector3 spawnpos = Vector3.zero;
+                    Quaternion spawnrot = new Quaternion();
 
-                //    var hits = Physics.OverlapSphere(monument.transform.position, 200f);
-                //    for (var i = 0; i < hits.Length; i++)
-                //    {
-                //        var ent = hits[i].GetComponentInParent<BaseEntity>();
-                //        if (ent == null) continue;
-                //        if (ent.ShortPrefabName.Equals("boat_shopkeeper"))
-                //        {
-                //            Puts("FOUND VENDOR, KILLING HIM!");
-                //            ent.Kill();
-                //            continue;
-                //        }
+                    foreach (BaseEntity ent in ents)
+                    {
+                        if (ent == null) continue;
+                        if (string.IsNullOrEmpty(ent.ShortPrefabName)) continue;
+                        if (ent.ShortPrefabName.Equals("boat_shopkeeper"))
+                        {
+                            if (configData.Options.alwaysPlaceVendors)
+                            {
+                                if (configData.Options.debug) Puts("FOUND VENDOR, KILLING HIM!");
+                                killvendor = true;
+                                //ent.Kill();
+                            }
+                        }
+                        else if (ent.ShortPrefabName.Equals("shopkeeper_vm_invis"))
+                        {
+                            // Find invisible shopkeepers but verify no bandit_shopkeeper exists there
+                            var hit = Physics.OverlapSphere(ent.transform.position, 1f);
+                            for (var i = 0; i < hit.Length; i++)
+                            {
+                                var subitem = hit[i].GetComponentInParent<BaseEntity>();
+                                if (subitem == null) continue;
+                                if (subitem.ShortPrefabName.Equals("bandit_shopkeeper"))
+                                {
+                                    if (configData.Options.debug) Puts($"Found an invisible shopkeeper at {subitem.transform.position}, but there is already an associated NPC.");
+                                }
+                                else
+                                {
+                                    foundvendor = true;
+                                    if (configData.Options.debug) Puts($"Found invisible shopkeeper with no associated NPC at {spawnpos.ToString()}");
+                                    spawnpos = ent.transform.position;
+                                    spawnrot = ent.transform.rotation;
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                    if (killvendor && spawnpos != Vector3.zero)
+                    {
+                        if (configData.Options.debug) Puts($"Respawning Boat Vendor at {spawnpos}");
+                        SpawnVendor(bprefab, spawnpos, spawnrot, true);
+                    }
+                    else if (foundvendor && spawnpos != Vector3.zero)
+                    {
+                        if (configData.Options.debug) Puts($"Spawning Boat Vendor at {spawnpos}");
+                        SpawnVendor(bprefab, spawnpos, spawnrot);
+                    }
+                }
 
-                //    }
-                //    foreach (BaseEntity entity in ents)
-                //    {
-                //        if (entity.ShortPrefabName.Equals("generator.static") && !foundgen)
-                //        {
-                //            foundgen = true;
-                //            var hit = Physics.OverlapSphere(entity.transform.position, 2f);
-                //            for (var i = 0; i < hit.Length; i++)
-                //            {
-                //                if (foundturret) continue;
-                //                var subitem = hit[i].GetComponentInParent<BaseEntity>();
-                //                if (subitem == null) continue;
-                //                if (subitem.ShortPrefabName.Equals("sentry.bandit.static") && !foundturret)
-                //                {
-                //                    foundturret = true;
-                //                    spawnpos = subitem.transform.position + Vector3.left * 2f;
-                //                    spawnrot = entity.transform.rotation;
-                //                }
-                //            }
-                //        }
-                //    }
-                //    if (foundvendor)
-                //    {
-                //        if (configData.Options.alwaysPlaceVendors)
-                //        {
-                //            SpawnVendor(bprefab, spawnpos, spawnrot, true);
-                //        }
-                //    }
-                //    else if (foundgen & foundturret)
-                //    {
-                //        SpawnVendor(bprefab, spawnpos, spawnrot);
-                //    }
-                //}
                 if (name.Contains("Bandit") && configData.Options.placeMiniVendor)
                 {
                     List<BaseEntity> ents = new List<BaseEntity>();
@@ -247,10 +267,11 @@ namespace Oxide.Plugins
 
         private class Options
         {
-            public bool autoPlaceVendors = false;
-            public bool alwaysPlaceVendors = false;
-            //public bool placeBoatVendor = true;
-            public bool placeMiniVendor = true;
+            public bool autoPlaceVendors;
+            public bool alwaysPlaceVendors;
+            public bool placeBoatVendor;
+            public bool placeMiniVendor;
+            public bool debug;
         }
 
         protected override void LoadDefaultConfig()
@@ -258,6 +279,14 @@ namespace Oxide.Plugins
             Puts("Creating new config file");
             configData = new ConfigData
             {
+                Options = new Options()
+                {
+                    autoPlaceVendors = false,
+                    alwaysPlaceVendors = false,
+                    placeBoatVendor = true,
+                    placeMiniVendor = true,
+                    debug = false
+                },
                 Version = Version,
             };
             SaveConfig(configData);
