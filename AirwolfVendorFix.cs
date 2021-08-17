@@ -14,6 +14,7 @@ namespace Oxide.Plugins
         private ConfigData configData;
         private readonly string vprefab = "assets/prefabs/npc/bandit/shopkeepers/bandit_conversationalist.prefab";
         private readonly string bprefab = "assets/prefabs/npc/bandit/shopkeepers/boat_shopkeeper.prefab";
+        private readonly string bvprefab = "assets/prefabs/npc/bandit/shopkeepers/bandit_shopkeeper.prefab";
         private readonly List<Vector3> boatloc = new List<Vector3>();
 
         [PluginReference]
@@ -38,10 +39,10 @@ namespace Oxide.Plugins
         {
             if (killold)
             {
-                var hits = Physics.OverlapSphere(spawnpos, 2f);
-                for (var i = 0; i < hits.Length; i++)
+                Collider[] hits = Physics.OverlapSphere(spawnpos, 2f);
+                for (int i = 0; i < hits.Length; i++)
                 {
-                    var vendor = hits[i].GetComponentInParent<BaseEntity>();
+                    BaseEntity vendor = hits[i].GetComponentInParent<BaseEntity>();
                     if (vendor == null) continue;
                     if (vendor.ShortPrefabName == "bandit_conversationalist")
                     {
@@ -49,15 +50,15 @@ namespace Oxide.Plugins
                     }
                 }
             }
-            var newvendor = GameManager.server.CreateEntity(prefab, spawnpos, spawnrot, true);
+            BaseEntity newvendor = GameManager.server.CreateEntity(prefab, spawnpos, spawnrot, true);
             newvendor.Spawn();
         }
 
         // For command placement
         private static void SpawnVendor(string prefab, BasePlayer player)
         {
-            var spawnpos = player.transform.position;
-            var newvendor = GameManager.server.CreateEntity(prefab, player.transform.position, player.transform.rotation, true);
+            Vector3 spawnpos = player.transform.position;
+            BaseEntity newvendor = GameManager.server.CreateEntity(prefab, player.transform.position, player.transform.rotation, true);
             newvendor.Spawn();
             newvendor.ToPlayer().viewAngles = player.viewAngles + new Vector3(0, 1.5f, 0);
             newvendor.transform.localEulerAngles = spawnpos + new Vector3(0, 1.5f, 0);
@@ -80,7 +81,7 @@ namespace Oxide.Plugins
             }
             List<VehicleVendor> ven = new List<VehicleVendor>();
             Vis.Entities(player.transform.position, 3f, ven);
-            foreach (var vendor in ven)
+            foreach (VehicleVendor vendor in ven)
             {
                 vendor.Kill();
             }
@@ -94,7 +95,7 @@ namespace Oxide.Plugins
 
             List<VehicleVendor> ven = new List<VehicleVendor>();
             Vis.Entities(player.transform.position, 3f, ven);
-            foreach (var vendor in ven)
+            foreach (VehicleVendor vendor in ven)
             {
                 vendor.Kill();
             }
@@ -105,15 +106,15 @@ namespace Oxide.Plugins
         {
             if (GridAPI != null)
             {
-                var g = (string[]) GridAPI.CallHook("GetGrid", position);
+                string[] g = (string[]) GridAPI.CallHook("GetGrid", position);
                 return string.Join("", g);
             }
             else
             {
                 // From GrTeleport for display only
-                var r = new Vector2(World.Size / 2 + position.x, World.Size / 2 + position.z);
-                var x = Mathf.Floor(r.x / 146.3f) % 26;
-                var z = Mathf.Floor(World.Size / 146.3f) - Mathf.Floor(r.y / 146.3f);
+                Vector2 r = new Vector2(World.Size / 2 + position.x, World.Size / 2 + position.z);
+                float x = Mathf.Floor(r.x / 146.3f) % 26;
+                float z = Mathf.Floor(World.Size / 146.3f) - Mathf.Floor(r.y / 146.3f);
 
                 return $"{(char)('A' + x)}{z - 1}";
             }
@@ -131,7 +132,7 @@ namespace Oxide.Plugins
 
                 if (ishapis)
                 {
-                    var elem = Regex.Matches(monument.name, @"\w{4,}|\d{1,}");
+                    MatchCollection elem = Regex.Matches(monument.name, @"\w{4,}|\d{1,}");
                     foreach (Match e in elem)
                     {
                         if (e.Value.Equals("MONUMENT")) continue;
@@ -147,7 +148,6 @@ namespace Oxide.Plugins
 
                 if (name.Contains("Fishing Village") && configData.Options.placeBoatVendor)
                 {
-                    // Large Fishing Village
                     if (configData.Options.debug) Puts($"Working on {name}");
                     List<BaseEntity> ents = new List<BaseEntity>();
                     Vis.Entities(monument.transform.position, 80, ents);
@@ -172,10 +172,10 @@ namespace Oxide.Plugins
                         else if (ent.ShortPrefabName.Equals("shopkeeper_vm_invis"))
                         {
                             // Find invisible shopkeepers but verify no bandit_shopkeeper exists there
-                            var hit = Physics.OverlapSphere(ent.transform.position, 1f);
-                            for (var i = 0; i < hit.Length; i++)
+                            Collider[] hit = Physics.OverlapSphere(ent.transform.position, 1f);
+                            for (int i = 0; i < hit.Length; i++)
                             {
-                                var subitem = hit[i].GetComponentInParent<BaseEntity>();
+                                BaseEntity subitem = hit[i].GetComponentInParent<BaseEntity>();
                                 if (subitem == null) continue;
                                 if (subitem.ShortPrefabName.Equals("bandit_shopkeeper") || subitem.ShortPrefabName.Equals("boat_shopkeeper"))
                                 {
@@ -206,6 +206,7 @@ namespace Oxide.Plugins
 
                 if (name.Contains("Bandit") && configData.Options.placeMiniVendor)
                 {
+                    if (configData.Options.debug) Puts($"Working on {name}");
                     List<BaseEntity> ents = new List<BaseEntity>();
                     Vis.Entities(monument.transform.position, 80, ents);
                     bool foundrfb = false;
@@ -223,10 +224,10 @@ namespace Oxide.Plugins
                             rfbloc = entity.transform.position;
                             spawnpos = Vector3.Lerp(monument.transform.position, rfbloc, 0.975f);
 
-                            var hits = Physics.OverlapSphere(entity.transform.position, 2f);
-                            for (var i = 0; i < hits.Length; i++)
+                            Collider[] hits = Physics.OverlapSphere(entity.transform.position, 2f);
+                            for (int i = 0; i < hits.Length; i++)
                             {
-                                var door = hits[i].GetComponentInParent<BaseEntity>();
+                                BaseEntity door = hits[i].GetComponentInParent<BaseEntity>();
                                 if (door == null) continue;
                                 if (door.ShortPrefabName.Equals("bandit_conversationalist"))
                                 {
@@ -237,9 +238,29 @@ namespace Oxide.Plugins
                                 {
                                     foundoor = true;
                                     spawnpos.y -= 1.2f;
-                                    var rotation = Quaternion.LookRotation(spawnpos);
+                                    Quaternion rotation = Quaternion.LookRotation(spawnpos);
                                     spawnrot = rotation *= Quaternion.Euler(0, 180, 0);
                                 }
+                            }
+                        }
+                        else if (entity.ShortPrefabName.Equals("shopkeeper_vm_invis") && configData.Options.fixInvisibleBanditVendors)
+                        {
+                            bool foundnpc = false;
+                            Collider[] hit = Physics.OverlapSphere(entity.transform.position, 1f);
+                            for (int i = 0; i < hit.Length; i++)
+                            {
+                                BaseEntity subitem = hit[i].GetComponentInParent<BaseEntity>();
+                                if (subitem == null) continue;
+                                if (subitem.ShortPrefabName.Equals("bandit_shopkeeper"))
+                                {
+                                    foundnpc = true;
+                                    if (configData.Options.debug) Puts($"Found an invisible shopkeeper at {subitem.transform.position}, and there is already an associated NPC.");
+                                }
+                            }
+                            if (!foundnpc)
+                            {
+                                if (configData.Options.debug) Puts($"Spawning missing shop vendor at {entity.transform.position}");
+                                SpawnVendor(bvprefab, entity.transform.position, entity.transform.rotation);
                             }
                         }
                     }
@@ -271,6 +292,8 @@ namespace Oxide.Plugins
             public bool alwaysPlaceVendors;
             public bool placeBoatVendor;
             public bool placeMiniVendor;
+            public bool fixInvisibleBanditVendors;
+            //public bool fixInvisibleBoatVendors;
             public bool debug;
         }
 
@@ -285,6 +308,8 @@ namespace Oxide.Plugins
                     alwaysPlaceVendors = false,
                     placeBoatVendor = true,
                     placeMiniVendor = true,
+                    fixInvisibleBanditVendors = true,
+                    //fixInvisibleBoatVendors = true,
                     debug = false
                 },
                 Version = Version,
