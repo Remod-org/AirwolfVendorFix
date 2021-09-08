@@ -7,13 +7,14 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("AirwolfVendorFix", "RFC1920", "1.0.5")]
-    [Description("Respawn missing Airwolf and Fishing Village vendors")]
+    [Info("AirwolfVendorFix", "RFC1920", "1.0.6")]
+    [Description("Respawn missing Airwolf, Fishing Village, and Ranch vendors")]
     internal class AirwolfVendorFix : RustPlugin
     {
         private ConfigData configData;
         private readonly string vprefab = "assets/prefabs/npc/bandit/shopkeepers/bandit_conversationalist.prefab";
         private readonly string bprefab = "assets/prefabs/npc/bandit/shopkeepers/boat_shopkeeper.prefab";
+        private readonly string hprefab = "assets/prefabs/npc/bandit/shopkeepers/stables_shopkeeper.prefab";
         private readonly string bvprefab = "assets/prefabs/npc/bandit/shopkeepers/bandit_shopkeeper.prefab";
         private readonly List<Vector3> boatloc = new List<Vector3>();
 
@@ -204,6 +205,67 @@ namespace Oxide.Plugins
                     }
                 }
 
+                if (name.Contains("Stables") && configData.Options.placeHorseVendor)
+                {
+                    if (configData.Options.debug) Puts($"Working on {name}");
+                    List<BaseEntity> ents = new List<BaseEntity>();
+                    Vector3 realpos = monument.transform.position;
+                    realpos.y = TerrainMeta.HeightMap.GetHeight(realpos);
+                    Vis.Entities(realpos, 80, ents);
+
+                    bool foundvendor = false;
+                    bool killvendor = false;
+                    Vector3 spawnpos = Vector3.zero;
+                    Quaternion spawnrot = new Quaternion();
+
+                    foreach (BaseEntity ent in ents)
+                    {
+                        if (ent == null) continue;
+                        if (string.IsNullOrEmpty(ent.ShortPrefabName)) continue;
+                        if (ent.ShortPrefabName.Equals("stables_shopkeeper"))
+                        {
+                            if (configData.Options.alwaysPlaceVendors)
+                            {
+                                if (configData.Options.debug) Puts("FOUND VENDOR, KILLING HIM!");
+                                killvendor = true;
+                                ent.Kill();
+                            }
+                        }
+                        else if (ent.ShortPrefabName.Equals("shopkeeper_vm_invis"))
+                        {
+                            // Find invisible shopkeepers but verify no bandit_shopkeeper exists there
+                            Collider[] hit = Physics.OverlapSphere(ent.transform.position, 1f);
+                            for (int i = 0; i < hit.Length; i++)
+                            {
+                                BaseEntity subitem = hit[i].GetComponentInParent<BaseEntity>();
+                                if (subitem == null) continue;
+                                if (subitem.ShortPrefabName.Equals("bandit_shopkeeper") || subitem.ShortPrefabName.Equals("stables_shopkeeper"))
+                                {
+                                    if (configData.Options.debug) Puts($"Found an invisible shopkeeper at {subitem.transform.position}, but there is already an associated NPC.");
+                                }
+                                else
+                                {
+                                    foundvendor = true;
+                                    if (configData.Options.debug) Puts($"Found invisible shopkeeper with no associated NPC at {spawnpos.ToString()}");
+                                    spawnpos = ent.transform.position;
+                                    spawnpos.y += 0.2f;
+                                    spawnrot = ent.transform.rotation;
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                    if (killvendor && spawnpos != Vector3.zero)
+                    {
+                        if (configData.Options.debug) Puts($"Respawning Horse Vendor at {spawnpos}");
+                        SpawnVendor(hprefab, spawnpos, spawnrot, true);
+                    }
+                    else if (foundvendor && spawnpos != Vector3.zero)
+                    {
+                        if (configData.Options.debug) Puts($"Spawning Horse Vendor at {spawnpos}");
+                        SpawnVendor(hprefab, spawnpos, spawnrot);
+                    }
+                }
                 if (name.Contains("Bandit") && configData.Options.placeMiniVendor)
                 {
                     if (configData.Options.debug) Puts($"Working on {name}");
@@ -292,6 +354,7 @@ namespace Oxide.Plugins
             public bool alwaysPlaceVendors;
             public bool placeBoatVendor;
             public bool placeMiniVendor;
+            public bool placeHorseVendor;
             public bool fixInvisibleBanditVendors;
             //public bool fixInvisibleBoatVendors;
             public bool debug;
@@ -308,6 +371,7 @@ namespace Oxide.Plugins
                     alwaysPlaceVendors = false,
                     placeBoatVendor = true,
                     placeMiniVendor = true,
+                    placeHorseVendor = true,
                     fixInvisibleBanditVendors = true,
                     //fixInvisibleBoatVendors = true,
                     debug = false
