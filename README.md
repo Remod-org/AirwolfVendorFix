@@ -3,26 +3,32 @@ Respawns missing Airwolf vehicle vendor, which can turn up missing for some reas
 
 An admin-level player simply goes to the desired location and types /vsp.
 
-New with 1.0.2: /bsp command for missing BoatVendor
+New with 1.0.2: /bsp command for missing boat vendor
+New with 1.0.6: /hsp command for missing horse vendor
 
 NOTE: These vendors are designed to work in conjunction with known and perhaps fixed spawn locations in the game ONLY.
 
 ## Commands
   -- /vsp - Spawn an Airwolf mini vendor.
   -- /bsp - Spawn a boat vendor.
+  -- /hsp - Spawn a horse vendor.
 
 ## Configuration
 ```json
 {
   "Options": {
-    "autoPlaceVendors": true,
-    "alwaysPlaceVendors": true,
-    "placeMiniVendor": false
+    "autoPlaceVendors": false,
+    "alwaysPlaceVendors": false,
+    "placeBoatVendor": true,
+    "placeMiniVendor": true,
+    "placeHorseVendor": true,
+    "fixInvisibleBanditVendors": true,
+    "debug": false
   },
   "Version": {
     "Major": 1,
     "Minor": 0,
-    "Patch": 3
+    "Patch": 6
   }
 }
 ```

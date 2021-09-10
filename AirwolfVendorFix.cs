@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Oxide.Plugins
 {
     [Info("AirwolfVendorFix", "RFC1920", "1.0.6")]
-    [Description("Respawn missing Airwolf, Fishing Village, and Ranch vendors")]
+    [Description("Respawn missing Airwolf, Fishing Village, and Horse vendors")]
     internal class AirwolfVendorFix : RustPlugin
     {
         private ConfigData configData;
@@ -101,6 +101,20 @@ namespace Oxide.Plugins
                 vendor.Kill();
             }
             SpawnVendor(vprefab, player);
+        }
+
+        [ChatCommand("hsp")]
+        private void CmdSpawnHorseVendor(BasePlayer player, string command, string[] args)
+        {
+            if (!player.IsAdmin) return;
+
+            List<VehicleVendor> ven = new List<VehicleVendor>();
+            Vis.Entities(player.transform.position, 3f, ven);
+            foreach (VehicleVendor vendor in ven)
+            {
+                vendor.Kill();
+            }
+            SpawnVendor(hprefab, player);
         }
 
         public string PositionToGrid(Vector3 position)
