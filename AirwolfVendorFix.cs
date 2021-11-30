@@ -1,4 +1,4 @@
-﻿using Oxide.Core;
+using Oxide.Core;
 using Oxide.Core.Libraries.Covalence;
 using Oxide.Core.Plugins;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("AirwolfVendorFix", "RFC1920", "1.0.6")]
+    [Info("AirwolfVendorFix", "RFC1920", "1.0.7")]
     [Description("Respawn missing Airwolf, Fishing Village, and Horse vendors")]
     internal class AirwolfVendorFix : RustPlugin
     {
@@ -36,7 +36,7 @@ namespace Oxide.Plugins
         }
 
         // For auto-placement
-        private void SpawnVendor(string prefab, Vector3 spawnpos, Quaternion spawnrot, bool killold = false)
+        private void SpawnVendor(string prefab, Vector3 spawnpos, Quaternion spawnrot, bool killold = false, bool stable = false)
         {
             if (killold)
             {
@@ -52,6 +52,24 @@ namespace Oxide.Plugins
                 }
             }
             BaseEntity newvendor = GameManager.server.CreateEntity(prefab, spawnpos, spawnrot, true);
+
+            if (stable)
+            {
+                InvisibleVendingMachine found = new InvisibleVendingMachine();
+                List<BaseEntity> ents = new List<BaseEntity>();
+                Vis.Entities(spawnpos, 1, ents);
+                foreach (BaseEntity ent in ents)
+                {
+                    if (ent.ShortPrefabName.Equals("shopkeeper_vm_invis"))
+                    {
+                        found = ent as InvisibleVendingMachine;
+                        break;
+                    }
+                }
+
+                NPCShopKeeper sk = newvendor as NPCShopKeeper;
+                if (found != null) sk.machine = found;
+            }
             newvendor.Spawn();
         }
 
@@ -122,18 +140,19 @@ namespace Oxide.Plugins
             if (GridAPI != null)
             {
                 string[] g = (string[]) GridAPI.CallHook("GetGrid", position);
-                return string.Join("", g);
+                return string.Concat(g);
             }
             else
             {
                 // From GrTeleport for display only
-                Vector2 r = new Vector2(World.Size / 2 + position.x, World.Size / 2 + position.z);
+                Vector2 r = new Vector2((World.Size / 2) + position.x, (World.Size / 2) + position.z);
                 float x = Mathf.Floor(r.x / 146.3f) % 26;
                 float z = Mathf.Floor(World.Size / 146.3f) - Mathf.Floor(r.y / 146.3f);
 
                 return $"{(char)('A' + x)}{z - 1}";
             }
         }
+
         private void FindMonuments()
         {
             Vector3 extents = Vector3.zero;
@@ -147,8 +166,7 @@ namespace Oxide.Plugins
 
                 if (ishapis)
                 {
-                    MatchCollection elem = Regex.Matches(monument.name, @"\w{4,}|\d{1,}");
-                    foreach (Match e in elem)
+                    foreach (Match e in Regex.Matches(monument.name, @"\w{4,}|\d{1,}"))
                     {
                         if (e.Value.Equals("MONUMENT")) continue;
                         if (e.Value.Contains("Label")) continue;
@@ -202,7 +220,6 @@ namespace Oxide.Plugins
                                     if (configData.Options.debug) Puts($"Found invisible shopkeeper with no associated NPC at {spawnpos.ToString()}");
                                     spawnpos = ent.transform.position;
                                     spawnrot = ent.transform.rotation;
-                                    continue;
                                 }
                             }
                         }
@@ -272,12 +289,12 @@ namespace Oxide.Plugins
                     if (killvendor && spawnpos != Vector3.zero)
                     {
                         if (configData.Options.debug) Puts($"Respawning Horse Vendor at {spawnpos}");
-                        SpawnVendor(hprefab, spawnpos, spawnrot, true);
+                        SpawnVendor(hprefab, spawnpos, spawnrot, true, true);
                     }
                     else if (foundvendor && spawnpos != Vector3.zero)
                     {
                         if (configData.Options.debug) Puts($"Spawning Horse Vendor at {spawnpos}");
-                        SpawnVendor(hprefab, spawnpos, spawnrot);
+                        SpawnVendor(hprefab, spawnpos, spawnrot, false, true);
                     }
                 }
                 if (name.Contains("Bandit") && configData.Options.placeMiniVendor)
@@ -347,7 +364,7 @@ namespace Oxide.Plugins
                             SpawnVendor(vprefab, spawnpos, spawnrot, true);
                         }
                     }
-                    else if (foundrfb & foundoor)
+                    else if (foundrfb && foundoor)
                     {
                         SpawnVendor(vprefab, spawnpos, spawnrot);
                     }
