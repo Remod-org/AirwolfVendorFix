@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("AirwolfVendorFix", "RFC1920", "1.0.7")]
+    [Info("AirwolfVendorFix", "RFC1920", "1.0.6")]
     [Description("Respawn missing Airwolf, Fishing Village, and Horse vendors")]
     internal class AirwolfVendorFix : RustPlugin
     {
